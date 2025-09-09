@@ -2,7 +2,7 @@ import pygame
 import os
 import random
 
-pipe_img = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","pipe.png")).convert_alpha())
+pipe_img = pygame.transform.scale2x(pygame.image.load(os.path.join("components/imgs","pipe.png")).convert_alpha())
 
 class Pipe:
     GAP = 200

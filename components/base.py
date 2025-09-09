@@ -1,7 +1,7 @@
 import pygame
 import os
 
-base_img = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","base.png")).convert_alpha())
+base_img = pygame.transform.scale2x(pygame.image.load(os.path.join("components/imgs","base.png")).convert_alpha())
 
 class Base:
     VEL = 5

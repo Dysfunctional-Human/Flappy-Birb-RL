@@ -2,7 +2,7 @@ import pygame
 import os
 
 # Loading all the bird images (flap up, mid, down)
-bird_images = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird" + str(x) + ".png"))) for x in range(1,4)]
+bird_images = [pygame.transform.scale2x(pygame.image.load(os.path.join("components/imgs", "bird" + str(x) + ".png"))) for x in range(1,4)]
 
 class Bird:
     MAX_ROTATION = 25
@@ -47,11 +47,6 @@ class Bird:
         elif self.tilt > -90:
             self.tilt -= self.ROT_VEL
             
-    def blitRotateCenter(surf, image, topleft, angle):
-        """Rotate a surface and blit it to the window so the center stays in the same place."""
-        rotated_image = pygame.transform.rotate(image, angle)
-        new_rect = rotated_image.get_rect(center=image.get_rect(topleft=topleft).center)
-        surf.blit(rotated_image, new_rect.topleft)    
         
     def draw(self, win):
         self.img_count += 1
@@ -72,8 +67,12 @@ class Bird:
             self.img = self.IMGS[1]
             self.img_count = self.ANIMATION_TIME*2
         
-        self.blitRotateCenter(win, self.img, (self.x, self.y), self.tilt)
+        blitRotateCenter(win, self.img, (self.x, self.y), self.tilt)
         
     def get_mask(self):
         return pygame.mask.from_surface(self.img)
 
+def blitRotateCenter(surf, image, topleft, angle):
+    rotated_image = pygame.transform.rotate(image, angle)
+    new_rect = rotated_image.get_rect(center = image.get_rect(topleft = topleft).center)
+    surf.blit(rotated_image, new_rect.topleft)
