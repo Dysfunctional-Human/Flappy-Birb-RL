@@ -1,15 +1,16 @@
 import pygame
 import os
 
+# Loading the image of the base
 base_img = pygame.transform.scale2x(pygame.image.load(os.path.join("components/imgs","base.png")).convert_alpha())
 
 class Base:
-    VEL = 5
-    WIDTH = base_img.get_width()
-    IMG = base_img
+    VEL = 5   # Velocity of the moving base
+    WIDTH = base_img.get_width()    # Width of the base's image
+    IMG = base_img  
     
     def __init__(self, y):
-        self.y = y
+        self.y = y    
         self.x1 = 0
         self.x2 = self.WIDTH
         
