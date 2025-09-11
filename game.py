@@ -3,6 +3,7 @@ import os
 
 pygame.font.init()
 
+# Setting the pygame window and game parameters
 WIN_WIDTH = 600
 WIN_HEIGHT = 800
 FLOOR = 730
@@ -10,15 +11,29 @@ START_FONT = pygame.font.SysFont("comicsans", 50)
 END_FONT = pygame.font.SysFont("comicsans", 70)
 DRAW_LINES = False
 
+# Rendering the game window
 WIN = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 pygame.display.set_caption("Flappy Bird")
 
+# Importing game components
 from components.bird import Bird
 from components.base import Base
 from components.pipes import Pipe
+
+# Loading the backgroud image 
 bg_img = pygame.transform.scale(pygame.image.load(os.path.join("components/imgs","bg.png")).convert_alpha(), (600, 900))
 
-def draw_regular_game_window(win, birds, pipes, base, score, pipe_ind):
+def draw_game_window(win, birds, pipes, base, score):
+    """Renders game components like - bird, base, pipes, background, current score onto the pygame window
+
+    Args:
+        win (pygame window): The game window
+        birds (List[Bird]): List of Bird object(s) to be rendered
+        pipes (List[Pipe]): List of Pipe Object(s) to be rendered
+        base (Base): Base object to be rendered
+        score (int): Current score to be rendered
+    """
+       
     win.blit(bg_img, (0, 0))
     
     for pipe in pipes:
@@ -34,7 +49,10 @@ def draw_regular_game_window(win, birds, pipes, base, score, pipe_ind):
     
     pygame.display.update()
 
-def play_regular_game():
+def play_game():
+    """Starts the Flappy Bird game and keeps it running till bird either goes out of bounds or collides with a pipe
+    """
+    
     global WIN
     win = WIN
     
@@ -63,11 +81,6 @@ def play_regular_game():
                     for bird in birds:
                         bird.jump()
         
-        pipe_ind = 0
-        if len(birds) > 0:
-            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].PIPE_TOP.get_width():
-                pipe_ind = 1
-        
         for bird in birds:
             bird.move()
         
@@ -79,7 +92,7 @@ def play_regular_game():
             pipe.move()
             
             for bird in birds:
-                if pipe.collide(bird=bird, win=win):
+                if pipe.collide(bird=bird):
                     birds.pop(birds.index(bird))
             
             if pipe.x + pipe.PIPE_TOP.get_width() < 0:
@@ -101,7 +114,7 @@ def play_regular_game():
             if bird.y + bird.img.get_height() - 10 >= FLOOR or bird.y < -50:
                 birds.pop(birds.index(bird))
         
-        draw_regular_game_window(win=WIN, birds=birds, pipes=pipes, base=base, score=score, pipe_ind=pipe_ind)
+        draw_game_window(win=WIN, birds=birds, pipes=pipes, base=base, score=score)
 
 if __name__ == '__main__':
-    play_regular_game()        
+    play_game()        
