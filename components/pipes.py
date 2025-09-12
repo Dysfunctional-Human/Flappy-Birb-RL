@@ -19,6 +19,8 @@ class Pipe:
         self.height = 0   # Height of top pipe
         
         self.gap = random.randint(135, 200)   # Gap between two pipes
+        # self.gap = 220   # Gap between two pipes
+
 
         self.top = 0   # y position of starting of upper pipe
         self.bottom = 0   # y position of starting of lower pipe
