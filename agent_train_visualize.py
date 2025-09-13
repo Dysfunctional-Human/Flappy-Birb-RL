@@ -4,8 +4,6 @@ import numpy as np
 import pygame
 import os
 
-from typing import List, Tuple
-
 # Pygame parameters
 WIN_WIDTH = 600
 WIN_HEIGHT = 800
@@ -15,6 +13,7 @@ PIPE_SPAWN = 700
 PIPE_ADD_GAP = 300
 HUD_FONT = "comicsans"
 
+# Initializing pygame window
 pygame.init()
 screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 pygame.display.set_caption("Flappy Bird Agent Evolution")
@@ -25,10 +24,13 @@ from components.pipes import Pipe
 from components.base import Base
 from components.agent import Agent
 
+# Loading the background image
 bg_image = pygame.transform.scale(pygame.image.load(os.path.join("components/imgs", "bg.png")).convert_alpha(), (600, 900))
 
+# Maximum number of birds to be displayed on the screen
 MAX_VISUAL_BIRDS = 20
 
+# Creating the Evolution Configuration class
 class EvoConfig:
     def __init__(self,
                  in_dim,
@@ -41,7 +43,20 @@ class EvoConfig:
                  mutat_sigma_b,
                  generations,
                  seed):
-        
+        """Configuration for the agent
+
+        Args:
+            in_dim (int): Input dimensions (Here, 4 - [dx, dy, vy, gap_half])
+            hidden (int): Dimensions of hidden layer
+            out_dim (int): Output dimensions (Here, 1 - jump or not jump) 
+            population_size (int): Number of agents to be trained per generation
+            elite_fraction (float): Number of best agents to be directly cloned into the next generation
+            mutate_prob (float): Probability of mutating the remaining agents
+            mutate_sigma_w (float): The amount by which the weights should be altered.
+            mutat_sigma_b (float): The amount by which the biases should be altered.
+            generations (int): Number of generations to be trained for
+            seed (int): Random seed for reproducibility
+        """
         self.in_dim = in_dim
         self.hidden = hidden
         self.out_dim = out_dim
@@ -54,28 +69,46 @@ class EvoConfig:
         self.seed = seed
         
 def next_generation(population, scores, cfg, rng: np.random.Generator):
-    idx = np.argsort(scores)[::-1]
-    elite_n = max(1, int(len(population) * cfg.elite_fraction))
-    elites = [population[i].clone() for i in idx[:elite_n]]
-    best = elites[0]
-    best_score = float(scores[idx[0]])
+    """Creating the new population for the next generation
+
+    Args:
+        population (List[Birds]): List of current population's birds
+        scores (List[float]): Current population's fitness scores
+        cfg (EvoConfig): Configurations for the agent population
+        rng (np.random.Generator): Random number generator
+
+    Returns:
+        new_population(List[Bird]), best(Bird), best_score(float): new population of birds, best Bird from previous generation, best score from previous generation
+    """
+    idx = np.argsort(scores)[::-1]      # Sorting the scores in descending order 
+    elite_n = max(1, int(len(population) * cfg.elite_fraction))         # Number of birds to directly be cloned
+    elites = [population[i].clone() for i in idx[:elite_n]]         # List of birds to directly be cloned
+    best = elites[0]        # best Bird from previous generation
+    best_score = float(scores[idx[0]])      # best score from previous generation
     
-    new_population = []
-    new_population.extend(elites)
+    new_population = []         # Initializing empty list for new population
+    new_population.extend(elites)       # Appending elite birds from previous generation into new one
     
     while len(new_population) < len(population):
-        parent = elites[int(rng.integers(0, elite_n))]
-        child = parent.clone()
-        child.mutate(
+        parent = elites[int(rng.integers(0, elite_n))]      #  Picking random bird from elites
+        child = parent.clone()      # Cloning the parent
+        child.mutate(       # Mutating the child
             sigma_w = cfg.mutate_sigma_w,   
             sigma_b = cfg.mutate_sigma_b,
             p = cfg.mutate_prob
         )
-        new_population.append(child)
+        new_population.append(child)        # Appending child into new population
         
     return new_population, best, best_score
 
 def save_agent(agent, path):
+    """Saving the agent in the path location in json format
+
+    Args:
+        agent (Agent): The bird to be saved
+        path (str): Location to be stored in
+    """
+    # Storing the shapes, weights and biases of the given bird
     data = {
         "shapes": agent.shapes,
         "W": [w.tolist() for w in agent.W],
@@ -85,6 +118,11 @@ def save_agent(agent, path):
         json.dump(data, f)
 
 def load_policy(path):
+    """Loading the json file and initializing a Bird agent from the loaded weights, biases 
+
+    Args:
+        path (str): Path where json file is stored at
+    """
     with open(path, "r") as f:
         data = json.load(f)
     shapes = [tuple(s) for s in data["shapes"]]
@@ -97,23 +135,43 @@ def load_policy(path):
     agent.b = [np.array(b, dtype=np.float32) for b in data["b"]]
     
 def next_pipe_for(bird_x, pipes):
+    """Finding out the next pipe to the right of bird's current x coordinate
+
+    Args:
+        bird_x (int): current x coordinate of the bird
+        pipes (List[Pipe]): List of pipes on screen
+
+    Returns:
+        p0(Pipe): The next pipe immediately to the right of P
+    """
+    # If only a single pipe is on screen, it is the next to the right
     if len(pipes) == 1:
         return pipes[0]
+    # A new pipe spwans only if bird has passed through previous, so if bird has passed through the 0th pipe, 1st pipe is the next
     p0 = pipes[0]
     if bird_x > p0.x + p0.PIPE_TOP.get_width():
         return pipes[1]
     return p0
 
 def make_observation(bird, pipe):
-    gap_mid = (pipe.height + pipe.bottom) / 2.0
-    gap_half = (pipe.bottom - pipe.height) / 2.0
-    bird_center_y = bird.y + bird.img.get_height() / 2.0
-    dx = (pipe.x - bird.x)
-    dy = (gap_mid - bird_center_y)
-    vy = bird.vel
+    """Calculating input params for the agent
+
+    Args:
+        bird (Bird): Current Bird
+        pipe (Pipe): Next pipe to it's immediate right
+
+    Returns:
+        List[float]: Input parameters for the agent
+    """
+    gap_mid = (pipe.height + pipe.bottom) / 2.0       # center of pipes' gap
+    gap_half = (pipe.bottom - pipe.height) / 2.0        # gap between the two pipes
+    bird_center_y = bird.y + bird.img.get_height() / 2.0    # y-coordinate of bird's center
+    dx = (pipe.x - bird.x)      # x-distance between bird and pipe
+    dy = (gap_mid - bird_center_y)      # y-distance between bird's center and pipe gap's center
+    vy = bird.vel       # y-velocity of the bird
     return np.array([dx, dy, vy, gap_half], dtype=np.float32)
 
-def evaluate_generation_visual(screen, clock, font, agents):
+def evaluate_generation_visual(screen, clock, font, agents, generation):
     base = Base(FLOOR)
     pipes = [Pipe(PIPE_SPAWN)]
     
@@ -210,6 +268,7 @@ def evaluate_generation_visual(screen, clock, font, agents):
         
         best_fit = max(s["fitness"] for s in birds) if birds else 0.0
         hud_lines = [
+            f"Current Generation: {generation}",
             f"Alive: {alive}/{len(birds)}",
             f"Gen best (this run): {best_fit:.1f}"
         ]
@@ -231,12 +290,12 @@ def train_visual():
     cfg = EvoConfig(in_dim=4,
                     hidden=(32,32),
                     out_dim=1,
-                    population_size=25,
+                    population_size=30,
                     elite_fraction=0.10,
                     mutate_prob=0.12,
                     mutate_sigma_w=0.12,
                     mutat_sigma_b=0.06,
-                    generations=80,
+                    generations=100,
                     seed=42)
     rng = np.random.default_rng(cfg.seed)
     
@@ -249,25 +308,23 @@ def train_visual():
     
     gen = 1
     while gen <= cfg.generations:
-        label = font.render(f"Genetation {gen}", True, (255, 255, 255))
+        label = font.render(f"Generation {gen}", True, (255, 255, 255))
         screen.blit(label, (WIN_WIDTH//2 - label.get_width()//2, 12))
         pygame.display.flip()
         
-        scores = evaluate_generation_visual(screen=screen, clock=clock, font=font, agents=population)
+        scores = evaluate_generation_visual(screen=screen, clock=clock, font=font, agents=population, generation=gen)
         
         population, best, best_score = next_generation(population=population, scores=scores, cfg=cfg, rng=rng) 
         
         if best_score > best_overall_score:
             best_overall = best
             best_overall_score = best_score 
+            save_agent(best_overall, "best_agent_visual.json")
+            print("saved best to best_agent_visual.json")
             
         print(f"[Gen {gen:03d}] avg={scores.mean():.3f}  max={scores.max():.3f}  best_overall={best_overall_score:.3f}")
 
         gen += 1
-        
-    if best_overall is not None:
-        save_agent(best_overall, "best_agent_visual.json")
-        print("saved best tp best_agent_visual.json")
         
     pygame.quit()
     
