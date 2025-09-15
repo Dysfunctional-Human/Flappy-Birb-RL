@@ -135,7 +135,7 @@ def load_policy(path):
     agent.b = [np.array(b, dtype=np.float32) for b in data["b"]]
     
 def next_pipe_for(bird_x, pipes):
-    """Finding out the next pipe to the right of bird's current x coordinate
+    """Returns the next pipe to the right of bird's current x coordinate
 
     Args:
         bird_x (int): current x coordinate of the bird
@@ -172,61 +172,74 @@ def make_observation(bird, pipe):
     return np.array([dx, dy, vy, gap_half], dtype=np.float32)
 
 def evaluate_generation_visual(screen, clock, font, agents, generation):
-    base = Base(FLOOR)
-    pipes = [Pipe(PIPE_SPAWN)]
+    """Runs the simulation for a single generation
+
+    Args:
+        screen (pygame window): The pygame game window
+        clock (pygame clock): The clock used for physics and animation calculation
+        font (str): The font for the text 
+        agents (List[Agent]): List of agents in current population
+        generation (int): Current generation
+
+    Returns:
+        List[float]: Fitness scores of each agent in current population
+    """
+    base = Base(FLOOR)      # Initializing a Base object
+    pipes = [Pipe(PIPE_SPAWN)]      # Initializing a list of pipes with a single pipe object
     
-    birds = []
+    birds = []      # Initializing empty birds list
     for agent in agents:
         birds.append({
-            "agent": agent,
+            "agent": agent,     
             "bird": Bird(230, 350),
             "alive": True,
             "fitness": 0.0,
-            "counted": set()
+            "counted": set()    # set of pipes the bird has passed
         })
     
-    running = True
+    running = True      # Is the game still running
     while running:
         clock.tick(FPS)
         
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type == pygame.QUIT:       # quit on quitting the game window
                 pygame.quit()
                 sys.exit(0)
                 
-        remove_pipes_list = []
+        remove_pipes_list = []      # Pipes to be removed from the original pipes list
         for pipe in pipes:
-            pipe.move()
-            if pipe.x + pipe.PIPE_TOP.get_width() < 0:
+            pipe.move()     
+            if pipe.x + pipe.PIPE_TOP.get_width() < 0:      # If the bird passes the pipe, append it to pipes to be removed list
                 remove_pipes_list.append(pipe)
         
-        if pipes[-1].x < WIN_WIDTH - PIPE_ADD_GAP:
+        if pipes[-1].x < WIN_WIDTH - PIPE_ADD_GAP:      # Add a pipe if neccessary
             pipes.append(Pipe(WIN_WIDTH))
         
-        for rem_pipe in remove_pipes_list:
+        for rem_pipe in remove_pipes_list:      # remove passed pipes 
             pipes.remove(rem_pipe)
             
-        base.move()
+        base.move()     # move the base
         
-        alive = 0
+        alive = 0       # Number of alive birds
         for birb in birds:
             if not birb["alive"]:
                 continue
             b = birb["bird"]
             ag = birb["agent"]
             
-            p = next_pipe_for(bird_x=b.x, pipes=pipes)
-            observation = make_observation(bird=b, pipe=p)
-            action = ag.act(observation)
+            p = next_pipe_for(bird_x=b.x, pipes=pipes)      # next pipe to the right
+            observation = make_observation(bird=b, pipe=p)      
+            action = ag.act(observation)        # agent's output
             if action == 1:
                 b.jump()
             
             b.move()
             
-            if (b.y + b.img.get_height() - 10 >= FLOOR) or (b.y < -50):
+            if (b.y + b.img.get_height() - 10 >= FLOOR) or (b.y < -50):     # check if bird has gone out of bounds
                 birb["alive"]= False
                 continue
             
+            # check if the bird collided with any pipe
             crashed = False
             for pipe in pipes:
                 if pipe.collide(bird=b):
@@ -237,16 +250,18 @@ def evaluate_generation_visual(screen, clock, font, agents, generation):
                 if crashed:
                     continue
             
+            # Increase fitness for being alive
             birb["fitness"] += 0.05
             
             for i, pipe in enumerate(pipes):
                 pipe_right = pipe.x + pipe.PIPE_TOP.get_width()
                 if (pipe_right < b.x) and (i not in birb["counted"]):
-                    birb["counted"].add(i)
-                    birb["fitness"] += 1.0
+                    birb["counted"].add(i)      # add passed pipes to 'counted'
+                    birb["fitness"] += 1.0      # increase fitness if bird has passed a pipe
                     
             alive += 1
-            
+        
+        # if all birds are dead, stop simulation
         if alive == 0:
             running = False
         
@@ -254,6 +269,7 @@ def evaluate_generation_visual(screen, clock, font, agents, generation):
         for pipe in pipes:
             pipe.draw(win=screen)
         
+        # Display max 20 birds
         shown = 0
         for birb in birds:
             if not birb["alive"]:
@@ -275,7 +291,7 @@ def evaluate_generation_visual(screen, clock, font, agents, generation):
         
         y = 8
         for line in hud_lines:
-            surf = font.render(line, True, (235, 235, 235))
+            surf = font.render(line, True, (0, 0, 0)) 
             screen.blit(surf, (10, y))
             y += 26
 
@@ -285,8 +301,11 @@ def evaluate_generation_visual(screen, clock, font, agents, generation):
 
 
 def train_visual():
+    """Run the entire training and visualization
+    """
     clock = pygame.time.Clock()
     
+    # Configuration ofr the agent
     cfg = EvoConfig(in_dim=4,
                     hidden=(32,32),
                     out_dim=1,
@@ -299,6 +318,7 @@ def train_visual():
                     seed=42)
     rng = np.random.default_rng(cfg.seed)
     
+    # Creating the original population
     population = []
     for _ in range(cfg.population_size):        
         population.append(Agent(in_dim=cfg.in_dim, hidden=cfg.hidden, out_dim=cfg.out_dim))
@@ -307,7 +327,7 @@ def train_visual():
     best_overall_score = -1e9
     
     gen = 1
-    while gen <= cfg.generations:
+    while gen <= cfg.generations:       
         label = font.render(f"Generation {gen}", True, (255, 255, 255))
         screen.blit(label, (WIN_WIDTH//2 - label.get_width()//2, 12))
         pygame.display.flip()
